@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<title>Leap Motion JavaScript Sample</title>
+	<script src="http://js.leapmotion.com/leap-0.6.3.min.js"></script>
+	<script type="text/javascript">
+		// Setup Leap loop with frame callback function
+		var controllerOptions = {enableGestures: true};
+
+		// to use HMD mode:
+		// controllerOptions.optimizeHMD = true;
+		var frames = [];
+		var resumeAt = 0;
+
+		var directions
+
+		var controller = Leap.loop(controllerOptions, function(frame) {
+
+			// no index finger data? next frame
+			if(!frame.fingers[1])
+				return;
+
+			// if we are having a break between 2 gestures
+			if(resumeAt && new Date() < resumeAt)
+				return;
+
+			for(var i = frames.length - 1; i >= 0; i--){
+
+				if(frames[i] === undefined){
+					console.log('ha?', frames.length, i, frames);
+				}
+
+				if(frames[i].fingers[1]){
+					
+					var diff = {};
+					var directions = [
+						{
+							name: 'x',
+							sides: ['right', 'left']
+						},
+						{
+							name: 'y',
+							sides: ['up', 'down']
+						},
+						{
+							name: 'z',
+							sides: ['out', 'in']
+						}
+					];
+					
+					directions.forEach(function(direction, index){
+						diff[direction.name] = frame.fingers[1].tipPosition[index] - frames[i].fingers[1].tipPosition[index];
+					});
+
+					// if(i === frames.length - 11 && Math.abs(diff) > 10)
+					// 	console.log(Math.floor(diff));
+
+					try{
+						directions.forEach(function(direction, index){
+							if(Math.abs(diff[direction.name]) > 150){
+								var gesture = diff[direction.name] > 0 ? direction.sides[0] : direction.sides[1];
+								frames = [];
+								resumeAt = +new Date() + 100;
+								throw 'gesture: ' + gesture;
+							}
+						});
+					}catch(message){
+						console.log(message);
+						return;
+					}
+				}
+
+			}
+
+			frames.push(frame);
+
+			if(frames.length > 20)
+				frames.shift();
+
+		});
+
+	</script>
+</head>
+<body>
+	<canvas width="100%"></canvas>
+</body>
+</html>
