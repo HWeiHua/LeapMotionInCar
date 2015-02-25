@@ -3,20 +3,26 @@
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 	<title>Leap Motion JavaScript Sample</title>
-	<style type="text/css">
-		html, body {
-			margin: 0;
-			padding: 0;
-		}
-	</style>
+	<link rel="stylesheet" href="http://libs.baidu.com/bootstrap/3.1.1/css/bootstrap.min.css">
 	<script src="http://js.leapmotion.com/leap-0.6.3.min.js"></script>
-	<script type="text/javascript" src="http://code.jquery.com/jquery-2.1.3.min.js"></script>
-	<script type="text/javascript" src="http://underscorejs.org/underscore-min.js"></script>
+	<script type="text/javascript" src="http://libs.baidu.com/jquery/2.1.1/jquery.min.js"></script>
+	<script type="text/javascript" src="http://libs.baidu.com/underscore/1.7.0/underscore-min.js"></script>
 </head>
 <body>
-	<audio id="audio" controls="true" src="file:///Users/uicestone/Music/听见下雨的声音.mp3"></audio>
+	
+	<section class="interface" id="media">
+		<audio id="audio" controls="true"></audio>
+	</section>
+
 	<canvas id="screen"></canvas>
+
 	<script type="text/javascript">
+
+		var mode = null; // window, ac, media, phone
+
+		var config = {
+			breakBetweenGestures: 500
+		};
 
 		var car = {
 
@@ -57,6 +63,15 @@
 
 		};
 
+		var audioElement = document.getElementById('audio');
+
+		audioElement.onended = function(){
+			car.media.channel = car.media.channel === car.media.playList.length - 1 ? 0 : car.media.channel + 1;
+		    audioElement.src = car.media.playList[car.media.channel];
+		    audioElement.play();
+			console.log('load: ' + car.media.playList[car.media.channel]);
+		}
+
 		var canvas = document.getElementById('screen'),
 				context = canvas.getContext('2d');
 
@@ -92,24 +107,25 @@
 			if(!frame.fingers[1])
 				return;
 
-			// canvas.width = canvas.width; //clear
+			canvas.width = canvas.width; //clear
 			
-			// //Get a pointable and normalize the tip position
-			// var hand = frame.hands[0];
-			// var interactionBox = frame.interactionBox;
-			// var normalizedIndexTipPosition = interactionBox.normalizePoint(frame.fingers[1].tipPosition, true);
-			
-			// // Convert the normalized coordinates to span the canvas
-			// var canvasX = canvas.width * normalizedIndexTipPosition[0];
-			// var canvasY = canvas.height * (1 - normalizedIndexTipPosition[1]);
+			//Get a pointable and normalize the tip position
+			var hand = frame.hands[0];
+			var interactionBox = frame.interactionBox;
+			var normalizedIndexTipPosition = interactionBox.normalizePoint(frame.fingers[1].tipPosition, true);
+			var normalizedPalmPosition = interactionBox.normalizePoint(frame.hands[0].palmPosition, true);
 
-			// //we can ignore z for a 2D context
-			// var color = 255 - Math.round(hand.pinchStrength * 255);
-			// context.fillStyle = 'rgb(' + color + ', ' + color + ', ' + color + ')';
-			// context.beginPath();
-			// context.arc(canvasX, canvasY, 100 - hand.pinchStrength * 100, 0, Math.PI * 2 , true);
-			// context.closePath();
-			// context.fill();
+			// Convert the normalized coordinates to span the canvas
+			var canvasX = canvas.width * normalizedIndexTipPosition[0];
+			var canvasY = canvas.height * (1 - normalizedIndexTipPosition[1]);
+
+			//we can ignore z for a 2D context
+			var color = 128 - Math.round(hand.pinchStrength * 255 / 2);
+			context.fillStyle = 'rgb(' + color + ', ' + color + ', ' + color + ')';
+			context.beginPath();
+			context.arc(canvasX, canvasY, 35 - hand.pinchStrength * 30, 0, Math.PI * 2 , true);
+			context.closePath();
+			context.fill();
 
 			// if we are having a break between 2 gestures
 			if(resumeAt && new Date() < resumeAt)
@@ -118,7 +134,9 @@
 			if(frame.hands[0].confidence < 0.5)
 				return;
 
-			for(var i = frames.length - 1; i >= 0; i--){
+			// console.info(frame.hands[0].grabStrength, frame.hands[0].pinchStrength);
+
+			for(var i = frames.length - 2; i >= 0; i--){
 
 				if(frames[i].fingers[1]){
 					
@@ -148,14 +166,15 @@
 
 						});
 
-						if(Math.abs(diffGrab) > 0.7){
-							frames = [];
+						if(Math.abs(diffGrab) > 0.6){
+							// frames = [];
+							// console.log(diffGrab, 'compare to frame ' + i, frames.length, frame.timestamp - frames[0].timestamp);
 							var gesture = diffGrab > 0 ? 'grabTight' : 'grabLoose';
 							throw 'gesture: ' + gesture;
 						}
 
 						if(Math.abs(diffPinch) > 0.7){
-							frames = [];
+							// frames = [];
 							var gesture = diffPinch > 0 ? 'pinchTight' : 'pinchLoose';
 							throw 'gesture: ' + gesture;
 						}
@@ -179,6 +198,7 @@
 						}
 
 						if(message === 'gesture: right'){
+
 							++car.media.channel;
 							
 							if(car.media.channel > car.media.playList.length - 1){
@@ -191,15 +211,23 @@
 							console.log('load: ' + car.media.playList[car.media.channel]);
 						}
 
-						if(message === 'gesture: grabLoose'){
+						if(message === 'gesture: grabLoose' && normalizedPalmPosition[0] > 1/3 && normalizedPalmPosition[0] < 2/3 && normalizedPalmPosition[1] < 1/3){
+							
+							if(!audioElement.src){
+								audioElement.src = car.media.playList[car.media.channel];
+							}
+
 							audioElement.play();
 						}
 
-						if(message === 'gesture: grabTight'){
+						if(message === 'gesture: grabTight' && Math.abs(normalizedPalmPosition[0]) > 1/3 && Math.abs(normalizedPalmPosition[0]) < 2/3 && normalizedPalmPosition[1] < 1/3){
 							audioElement.load();
 						}
 
-						return;
+						resumeAt = +new Date() + config.breakBetweenGestures;
+						break;
+
+						// return;
 					}
 
 				}
@@ -208,17 +236,16 @@
 
 			frames.push(frame);
 
+			// console.log('new frame pushed');
+
 			while(frame.timestamp - frames[0].timestamp > 200000){
 				frames.shift();
+				// console.log('head frame shifted');
 			}
 
 			// console.log('frames stored: ' + frames.length);
 
 		});
-
-		controller.connect();
-
-		var audioElement = document.getElementById('audio');
 
 		controller.on('gesture', function(gesture, frame){
 
@@ -227,6 +254,10 @@
 				return;
 
 			// console.log(gesture.type, gesture.state, gesture, frame.pointables);
+
+			var interactionBox = frame.interactionBox;
+			var normalizedIndexTipPosition = frame.fingers[1] && interactionBox.normalizePoint(frame.fingers[1].tipPosition, true);
+			var normalizedPalmPosition = interactionBox.normalizePoint(frame.hands[0].palmPosition, true);
 
 			if(gesture.type === 'circle'){
 
@@ -268,22 +299,44 @@
 				}
 			}
 
+			if(gesture.type === 'screenTap'){
+				
+				if(normalizedIndexTipPosition[1] > 2/3){
+					mode = 'window';
+				}
+				else if(normalizedIndexTipPosition[1] < 1/3){
+					mode = 'ac';
+				}
+				else if(normalizedIndexTipPosition[0] > 2/3){
+					mode = 'media';
+				}
+				else if(normalizedIndexTipPosition[0] < 1/3){
+					mode = 'phone';
+				}
+
+				console.log('mode: ' + mode);
+
+				$('.interface').hide();
+				$('.interface#' + mode).show()
+
+			}
+
 			if(gesture.type === 'swipe'){
 
-				console.log(gesture, frame);
+				// console.log(gesture, frame);
 
 				directions.forEach(function(thisDirection, index){
 
-					console.log(thisDirection.name, gesture.direction[index],
+					// console.log(thisDirection.name, gesture.direction[index],
 
-						directions.reduce(function(previous, current, index){
-							if(current.name !== thisDirection.name){
-								return previous && Math.abs(gesture.direction[index]) < 0.5;
-							}else{
-								return previous;
-							}
-						}, true)
-					);
+					// 	directions.reduce(function(previous, current, index){
+					// 		if(current.name !== thisDirection.name){
+					// 			return previous && Math.abs(gesture.direction[index]) < 0.5;
+					// 		}else{
+					// 			return previous;
+					// 		}
+					// 	}, true)
+					// );
 
 					if(
 						// distance of this direction >= 0.5
@@ -298,13 +351,21 @@
 							}
 						}, true)
 					){
-						resumeAt = +new Date() + 100;
-						console.log('gesture: swipe ' + thisDirection.sides[gesture.direction[index] > 0 ? 0 : 1]);
+						resumeAt = +new Date() + config.breakBetweenGestures;
+						var swipeDirecrtion = thisDirection.sides[gesture.direction[index] > 0 ? 0 : 1];
+						console.info('gesture: swipe ' + swipeDirecrtion);
+
+						if(swipeDirecrtion === 'down' && mode === 'media'){
+							car.media.mode = car.media.mode === 'music' ? 'radio' : 'music';
+							console.log('media mode: ' + car.media.mode);
+						}
 					}
 				});
 			}
 
-		})
+		});
+
+		controller.connect();
 
 	</script>
 </body>
