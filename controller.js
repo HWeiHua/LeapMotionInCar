@@ -4,13 +4,9 @@ var config = {
 
 var gestureHistory = [];
 
-var audioElement = document.getElementById('audio');
+var audioElement;
 
-var canvas = document.getElementById('screen'),
-		context = canvas.getContext('2d');
-
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+var canvas, context;
 
 // Setup Leap loop with frame callback function
 var controller = new Leap.Controller({enableGestures: true});
@@ -36,15 +32,59 @@ var directions = [
 	}
 ];
 
-angular.module('leapmotion', []).controller('Ctrl', function($scope){
+var scope;
+
+function trackFinger(canvas, normalizedIndexTipPosition, pinchStrength){
+	canvas.width = canvas.width; //clear
+	
+	// Convert the normalized coordinates to span the canvas
+	var canvasX = canvas.width * normalizedIndexTipPosition[0];
+	var canvasY = canvas.height * (1 - normalizedIndexTipPosition[1]);
+
+	//we can ignore z for a 2D context
+	var color = 128 - Math.round(pinchStrength * 255 / 2);
+	context.fillStyle = 'rgb(' + color + ', ' + color + ', ' + color + ')';
+	context.beginPath();
+	context.arc(canvasX, canvasY, 35 - pinchStrength * 30, 0, Math.PI * 2 , true);
+	context.closePath();
+	context.fill();
+}
+
+$(function(){
+	audioElement = document.getElementById('audio');
+	canvas = document.getElementById('screen');
+	context = canvas.getContext('2d');
+
+	canvas.width = window.innerWidth;
+	canvas.height = window.innerHeight;
+
+	audioElement.onended = function(){
+		$scope.car.media.channel = $scope.car.media.channel === $scope.car.media.playList.length - 1 ? 0 : $scope.car.media.channel + 1;
+	    audioElement.src = $scope.car.media.playList[$scope.car.media.channel];
+	    audioElement.play();
+		console.log('load: ' + $scope.car.media.playList[$scope.car.media.channel]);
+	}
+});
+
+var app = angular.module('leapmotion', []).controller('Ctrl', function($scope){
+
+	scope = $scope;
 
 	$scope.inMode = function(mode){
 		return $scope.mode === mode;
 	};
 
 	$scope.enterMode = function(mode){
-		$scope.mode = $scope.mode;
+		$scope.mode = mode;
 	};
+
+	$scope.getFileName = function(path){
+		return path.match(/.*\/(.*?)\./)[1] || path;
+	}
+
+	$scope.isVolumeBarVisible = function(){
+		return + new Date() < $scope.showVolumeBarUntil;
+	}
 
 	$scope.mode = 'media'; // window, ac, media, phone
 
@@ -60,7 +100,7 @@ angular.module('leapmotion', []).controller('Ctrl', function($scope){
 		ac: {
 			isOn: false,
 			fanSpeed: 0,
-			temperature: 25,
+			temperature: 25.0,
 			temperatureRange: [16, 30]
 		},
 
@@ -68,7 +108,7 @@ angular.module('leapmotion', []).controller('Ctrl', function($scope){
 			isOn: true,
 			mode: 'music', // radio, cd
 			channel: 0, 
-			volume: 0, // 0-1, step by 0.1
+			volume: 1.0, // 0-1, step by 0.1
 			music: [
 				"file:///Users/uicestone/Music/听见下雨的声音.mp3",
 				"file:///Users/uicestone/Music/手写的从前.mp3",
@@ -76,7 +116,7 @@ angular.module('leapmotion', []).controller('Ctrl', function($scope){
 				"file:///Users/uicestone/Music/明明就.mp3"
 			],
 			radio: [
-				"radio.mp3",
+				"media_resource/radio.mp3",
 			],
 			playList: [],
 		},
@@ -87,12 +127,7 @@ angular.module('leapmotion', []).controller('Ctrl', function($scope){
 
 	};
 
-	audioElement.onended = function(){
-		$scope.car.media.channel = $scope.car.media.channel === $scope.car.media.playList.length - 1 ? 0 : $scope.car.media.channel + 1;
-	    audioElement.src = $scope.car.media.playList[$scope.car.media.channel];
-	    audioElement.play();
-		console.log('load: ' + $scope.car.media.playList[$scope.car.media.channel]);
-	}
+	$scope.car.media.playList = $scope.car.media.music;
 
 	controller.on('frame', function(frame) {
 
@@ -100,25 +135,13 @@ angular.module('leapmotion', []).controller('Ctrl', function($scope){
 		if(!frame.fingers[1])
 			return;
 
-		canvas.width = canvas.width; //clear
-		
 		//Get a pointable and normalize the tip position
 		var hand = frame.hands[0];
 		var interactionBox = frame.interactionBox;
 		var normalizedIndexTipPosition = interactionBox.normalizePoint(frame.fingers[1].tipPosition, true);
 		var normalizedPalmPosition = interactionBox.normalizePoint(frame.hands[0].palmPosition, true);
 
-		// Convert the normalized coordinates to span the canvas
-		var canvasX = canvas.width * normalizedIndexTipPosition[0];
-		var canvasY = canvas.height * (1 - normalizedIndexTipPosition[1]);
-
-		//we can ignore z for a 2D context
-		var color = 128 - Math.round(hand.pinchStrength * 255 / 2);
-		context.fillStyle = 'rgb(' + color + ', ' + color + ', ' + color + ')';
-		context.beginPath();
-		context.arc(canvasX, canvasY, 35 - hand.pinchStrength * 30, 0, Math.PI * 2 , true);
-		context.closePath();
-		context.fill();
+		trackFinger(canvas, normalizedIndexTipPosition, hand.pinchStrength);
 
 		// if we are having a break between 2 gestures
 		if(resumeAt && new Date() < resumeAt)
@@ -276,6 +299,8 @@ angular.module('leapmotion', []).controller('Ctrl', function($scope){
 			// console.log('gesture frame shifted');
 		}
 
+		$scope.$apply();
+
 		// console.log('frames stored: ' + frames.length);
 
 	});
@@ -314,6 +339,8 @@ angular.module('leapmotion', []).controller('Ctrl', function($scope){
 			if($scope.car.media.volume.toFixed(1) !== volume.toFixed(1)){
 				console.log('volume: ' + volume.toFixed(1));
 			}
+
+			$scope.showVolumeBarUntil = + new Date() + 1000;
 
 			audioElement.volume = $scope.car.media.volume = volume;
 		}
@@ -416,7 +443,7 @@ angular.module('leapmotion', []).controller('Ctrl', function($scope){
 					console.info('gesture: swipe ' + swipeDirecrtion);
 
 					if(swipeDirecrtion === 'down' && $scope.mode === 'media' && frame.hands[0].palmNormal[1] < 0){
-						$scope.car.media.mode = $scope.car.media.$scope.mode === 'music' ? 'radio' : 'music';
+						$scope.car.media.mode = $scope.car.media.mode === 'music' ? 'radio' : 'music';
 						
 						$scope.car.media.playList = $scope.car.media[$scope.car.media.mode];
 						$scope.car.media.channel = 0;

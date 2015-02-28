@@ -9,10 +9,11 @@
 	<script type="text/javascript" src="bower_components/jquery/dist/jquery.min.js"></script>
 	<script type="text/javascript" src="bower_components/underscore/underscore-min.js"></script>
 	<script type="text/javascript" src="bower_components/angular/angular.js"></script>
+	<script type="text/javascript" src="controller.js"></script>
 </head>
 <body ng-controller="Ctrl">
 
-	<div class="wrapper">
+	<div class="container">
 
 		<nav>
 			<a ng-click="enterMode('ac')" class="btn btn-default btn-lg glyphicon glyphicon-asterisk" ng-class="{active:inMode('ac')}"></a>
@@ -26,7 +27,7 @@
 		</section>
 
 		<section id="ac" ng-show="inMode('ac')">
-			<span id="temp"></span>
+			<h1 id="temp" class="text-center" style="font-size:120px; color:rgb({{63+(192-63)*(car.ac.temperature-car.ac.temperatureRange[0])/(car.ac.temperatureRange[1]-car.ac.temperatureRange[0]) | number:0}}, 63, {{192-(192-63)*(car.ac.temperature-car.ac.temperatureRange[0])/(car.ac.temperatureRange[1]-car.ac.temperatureRange[0]) | number:0}})">{{car.ac.temperature | number:1}} <small>°C</small></h1>
 		</section>
 
 		<section id="phone" ng-show="inMode('phone')">
@@ -34,15 +35,28 @@
 		</section>
 
 		<section id="media" ng-show="inMode('media')">
-			<span id="track"></span>
-			<audio id="audio" controls="true"></audio>
+			<div id="volume" ng-show="isVolumeBarVisible()">
+				<div class="inner" style="width: {{car.media.volume*100 | number:0}}%;">音量：{{car.media.volume*100 | number:0}}%</div>
+			</div>
+			<div class="row">
+				<div class="thumbnail col-sm-5">
+					<img ng-src="media_resource/{{car.media.mode}}.jpg">
+					<div class="caption">
+						<audio id="audio" controls="true"></audio>
+						<h3 class="text-center">{{getFileName(car.media.playList[car.media.channel])}}</h3>
+					</div>
+				</div>
+				<div class="col-sm-7">
+					<div class="list-group">
+						<a ng-repeat="item in car.media.playList" class="list-group-item" ng-class="{active: $index === car.media.channel}">{{getFileName(item)}}</a>
+					</div>
+				</div>
+			</div>
 		</section>
 
 	</div>
 
 	<canvas id="screen"></canvas>
-
-	<script type="text/javascript" src="controller.js"></script>
 
 </body>
 </html>

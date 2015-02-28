@@ -1,26 +1,42 @@
-.wrapper {
-	width: 60%;
-	margin: auto;
-}
-
 canvas#screen {
 	position: absolute;
 	top: 0;
 	left: 0;
 	bottom: 0;
 	right: 0;
+	z-index: -1;
+}
+
+audio {
+	width: 100%;
 }
 
 nav  {
 	text-align: center;
-	position: fixed;
-	bottom: 0;
-	left: 0;
-	right: 0;
 }
 
 nav .btn {
 	padding: 20px 56px;
 	font-size: 54px;
 	margin: 20px;
+}
+
+#volume {
+	position: absolute;
+	z-index: 1;
+	left: 50%;
+	top: 50%;
+	width: 200px;
+	margin: 3px 0;
+	margin-left: -100px;
+	height: 20px;
+	color: #CCDAFF;
+	font-size: 30px;
+}
+
+#volume .inner {
+	background: #337ab7;
+	border-radius: 3px;
+	padding: 2px 5px;
+	white-space: nowrap;
 }
