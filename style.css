@@ -1,0 +1,26 @@
+.wrapper {
+	width: 60%;
+	margin: auto;
+}
+
+canvas#screen {
+	position: absolute;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	right: 0;
+}
+
+nav  {
+	text-align: center;
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	right: 0;
+}
+
+nav .btn {
+	padding: 20px 56px;
+	font-size: 54px;
+	margin: 20px;
+}

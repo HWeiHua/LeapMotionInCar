@@ -1,0 +1,22 @@
+{
+  "name": "LeapMotionInCar",
+  "version": "0.1.0",
+  "homepage": "https://github.com/uicestone/LeapMotionInCar",
+  "authors": [
+    "Uice Lu <uicestone@gmail.com>"
+  ],
+  "main": "GestureService.html",
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "angular": "~1.3.14",
+    "bootstrap": "~3.3.2",
+    "underscore": "~1.8.2"
+  }
+}
