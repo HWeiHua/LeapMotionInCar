@@ -22,16 +22,57 @@
 			<a ng-click="enterMode('phone')" class="btn btn-default btn-lg glyphicon glyphicon-earphone" ng-class="{active:inMode('phone')}"></a>
 		</nav>
 
-		<section id="window" ng-show="inMode('window')">
-			<div></div>
+		<section id="window" ng-show="inMode('window')" class="text-center">
+			<div style="display:inline-block;position:relative">
+				<div class="progress">
+					<div class="progress-bar progress-bar-striped active" role="progressbar" style="width: {{(1 - car.windowsPosition[4]) * 100}}%"></div>
+				</div>
+				<img src="media_resource/window.jpg">
+				<div id="top-window-status-bar" class="progress">
+					<div class="progress-bar progress-bar-striped active" role="progressbar" style="width: {{(1 - car.windowsPosition[0]) * 100}}%"></div>
+				</div>
+			</div>
 		</section>
 
 		<section id="ac" ng-show="inMode('ac')">
-			<h1 id="temp" class="text-center" style="font-size:120px; color:rgb({{63+(192-63)*(car.ac.temperature-car.ac.temperatureRange[0])/(car.ac.temperatureRange[1]-car.ac.temperatureRange[0]) | number:0}}, 63, {{192-(192-63)*(car.ac.temperature-car.ac.temperatureRange[0])/(car.ac.temperatureRange[1]-car.ac.temperatureRange[0]) | number:0}})">{{car.ac.temperature | number:1}} <small>°C</small></h1>
+			<h2 style="padding: 0 350px">
+				<i class="glyphicon glyphicon-asterisk" ng-repeat="i in getFanSpeedNumber(car.ac.fanSpeed) track by $index"></i>
+			</h2>
+			<h1 id="temp" class="text-center" ng-class="{grey:!car.ac.isOn}" style="font-size:120px; color:rgb({{63+(192-63)*(car.ac.temperature-car.ac.temperatureRange[0])/(car.ac.temperatureRange[1]-car.ac.temperatureRange[0]) | number:0}}, 63, {{192-(192-63)*(car.ac.temperature-car.ac.temperatureRange[0])/(car.ac.temperatureRange[1]-car.ac.temperatureRange[0]) | number:0}})">{{car.ac.temperature | number:1}} <small>°C</small></h1>
 		</section>
 
-		<section id="phone" ng-show="inMode('phone')">
-			<span id="caller"></span>
+		<section id="phone" ng-show="inMode('phone')" class="text-center">
+			<img ng-src="{{car.phone.contact.avatar}}" class="img-circle">
+			<h3>
+				{{car.phone.contact.name}}
+				<br>
+				<small>{{car.phone.contact.number}}</small>
+			</h3>
+			<div id="calling-in" ng-show="phoneStatusIn('calling in')">
+				<div id="accept">
+					<i class="glyphicon glyphicon-menu-left"></i>
+					<i class="glyphicon glyphicon-menu-left"></i>
+					<i class="glyphicon glyphicon-menu-left"></i>
+					<i class="glyphicon glyphicon-menu-left"></i>
+					<i class="glyphicon glyphicon-menu-left"></i>
+					<i class="glyphicon glyphicon-menu-left"></i>
+					<i class="glyphicon glyphicon-menu-left"></i>
+					<i class="glyphicon glyphicon-earphone phone"></i>
+				</div>
+				<div id="decline">
+					<i class="glyphicon glyphicon-earphone phone"></i>
+					<i class="glyphicon glyphicon-menu-right"></i>
+					<i class="glyphicon glyphicon-menu-right"></i>
+					<i class="glyphicon glyphicon-menu-right"></i>
+					<i class="glyphicon glyphicon-menu-right"></i>
+					<i class="glyphicon glyphicon-menu-right"></i>
+					<i class="glyphicon glyphicon-menu-right"></i>
+					<i class="glyphicon glyphicon-menu-right"></i>
+				</div>
+			</div>
+			<div id="online" ng-show="phoneStatusIn('online')">
+				<h2 class="timer">{{car.phone.onlineTime/60 | number:0}}:{{car.phone.onlineTime % 60}}</h2>
+			</div>
 		</section>
 
 		<section id="media" ng-show="inMode('media')">

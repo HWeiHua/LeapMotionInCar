@@ -50,25 +50,23 @@ function trackFinger(canvas, normalizedIndexTipPosition, pinchStrength){
 	context.fill();
 }
 
-$(function(){
-	audioElement = document.getElementById('audio');
-	canvas = document.getElementById('screen');
-	context = canvas.getContext('2d');
+var app = angular.module('leapmotion', []).controller('Ctrl', function($scope, $interval){
 
-	canvas.width = window.innerWidth;
-	canvas.height = window.innerHeight;
+	$(function(){
+		audioElement = document.getElementById('audio');
+		canvas = document.getElementById('screen');
+		context = canvas.getContext('2d');
 
-	audioElement.onended = function(){
-		$scope.car.media.channel = $scope.car.media.channel === $scope.car.media.playList.length - 1 ? 0 : $scope.car.media.channel + 1;
-	    audioElement.src = $scope.car.media.playList[$scope.car.media.channel];
-	    audioElement.play();
-		console.log('load: ' + $scope.car.media.playList[$scope.car.media.channel]);
-	}
-});
+		canvas.width = window.innerWidth;
+		canvas.height = window.innerHeight;
 
-var app = angular.module('leapmotion', []).controller('Ctrl', function($scope){
+	});
 
 	scope = $scope;
+
+	$scope.getFanSpeedNumber = function(num) {
+	    return new Array(num);   
+	}
 
 	$scope.inMode = function(mode){
 		return $scope.mode === mode;
@@ -76,6 +74,15 @@ var app = angular.module('leapmotion', []).controller('Ctrl', function($scope){
 
 	$scope.enterMode = function(mode){
 		$scope.mode = mode;
+
+		switch(mode){
+			case 'phone':
+				$scope.car.phone.onCall();
+				break;
+			case 'media':
+				$scope.car.media.play();
+				break;
+		}
 	};
 
 	$scope.getFileName = function(path){
@@ -86,7 +93,11 @@ var app = angular.module('leapmotion', []).controller('Ctrl', function($scope){
 		return + new Date() < $scope.showVolumeBarUntil;
 	}
 
-	$scope.mode = 'media'; // window, ac, media, phone
+	$scope.phoneStatusIn = function(status){
+		return $scope.car.phone.status === status;
+	}
+
+	$scope.mode = 'window'; // window, ac, media, phone
 
 	$scope.car = {
 
@@ -94,12 +105,38 @@ var app = angular.module('leapmotion', []).controller('Ctrl', function($scope){
 			0, // frontLeft
 			0, // frontRight
 			0, // rearLeft
-			0 // rearRight
+			0, // rearRight
+			0 // top
 		], // 0: totally closed, 1: totally open
+
+		windowMoving: {},
+
+		openWindow: function(id){
+			$scope.car.windowMoving[id] = $interval(function(){
+				$scope.car.windowsPosition[id] += 0.05;
+				if($scope.car.windowsPosition[id] > 1){
+					$interval.cancel($scope.car.windowMoving[id]);
+				}
+			}, 100);
+		},
+
+		closeWindow: function(id){
+			$scope.car.windowMoving[id] = $interval(function(){
+				$scope.car.windowsPosition[id] -= 0.05;
+				if($scope.car.windowsPosition[id] < 0){
+					$interval.cancel($scope.car.windowMoving[id]);
+				}
+			}, 100);
+		},
+
+		stopWindow: function(id){
+			return $interval.cancel($scope.car.windowMoving[id]);
+		},
 
 		ac: {
 			isOn: false,
-			fanSpeed: 0,
+			fanSpeed: 2,
+			fanSpeedRange: [1, 3],
 			temperature: 25.0,
 			temperatureRange: [16, 30]
 		},
@@ -110,19 +147,62 @@ var app = angular.module('leapmotion', []).controller('Ctrl', function($scope){
 			channel: 0, 
 			volume: 1.0, // 0-1, step by 0.1
 			music: [
-				"file:///Users/uicestone/Music/听见下雨的声音.mp3",
-				"file:///Users/uicestone/Music/手写的从前.mp3",
-				"file:///Users/uicestone/Music/鞋子特大号.mp3",
-				"file:///Users/uicestone/Music/明明就.mp3"
+				"media_resource/听见下雨的声音.mp3",
+				"media_resource/手写的从前.mp3",
+				"media_resource/鞋子特大号.mp3",
+				"media_resource/明明就.mp3"
 			],
 			radio: [
 				"media_resource/radio.mp3",
 			],
 			playList: [],
+			play: function(){
+
+				$scope.car.media.playList = $scope.car.media[$scope.car.media.mode];
+
+				audioElement.src = $scope.car.media.playList[$scope.car.media.channel];
+
+				audioElement.play();
+
+				audioElement.onended = function(){
+					$scope.car.media.channel = $scope.car.media.channel === $scope.car.media.playList.length - 1 ? 0 : $scope.car.media.channel + 1;
+				    audioElement.src = $scope.car.media.playList[$scope.car.media.channel];
+				    audioElement.play();
+					console.log('load: ' + $scope.car.media.playList[$scope.car.media.channel]);
+				}
+			}
 		},
 
 		phone: {
-			status: 'not connected', // not connected, stand by, on the call, calling in
+			status: 'calling in', // not connected, stand by, online, calling in
+			contact: {
+				name: '张三',
+				number: 13012345678,
+				avatar: 'media_resource/contact.jpg'
+			},
+			onCall: function(){
+				// play ring tone
+				$scope.car.phone.status = 'calling in';
+				audioElement.src = 'media_resource/ring.mp3';
+				audioElement.play();
+				audioElement.onended = function(){
+				    audioElement.play();
+				}
+			},
+			answer: function(){
+				$scope.car.phone.status = 'online',
+				$interval(function(){
+					$scope.car.phone.onlineTime ++;
+				}, 1000);
+				audioElement.src = '';
+				$scope.$apply();
+			},
+			decline: function(){
+				audioElement.src = '';
+				$scope.enterMode('media');
+				$scope.$apply();
+			},
+			onlineTime: 0
 		}
 
 	};
@@ -198,14 +278,14 @@ var app = angular.module('leapmotion', []).controller('Ctrl', function($scope){
 					});
 
 					if(Math.abs(diffGrab) > 0.6){
-						// frames = [];
+						frames = [];
 						// console.log(diffGrab, 'compare to frame ' + i, frames.length, frame.timestamp - frames[0].timestamp);
 						var gesture = diffGrab > 0 ? 'grabTight' : 'grabLoose';
 						throw 'gesture: ' + gesture;
 					}
 
-					if(Math.abs(diffPinch) > 0.7){
-						// frames = [];
+					if(Math.abs(diffPinch) > 0.8){
+						frames = [];
 						var gesture = diffPinch > 0 ? 'pinchTight' : 'pinchLoose';
 						throw 'gesture: ' + gesture;
 					}
@@ -215,55 +295,29 @@ var app = angular.module('leapmotion', []).controller('Ctrl', function($scope){
 
 					console.info(message);
 					
-					if(message === 'gesture: left' && $scope.mode === 'media'){
-						-- $scope.car.media.channel;
-						
-						if($scope.car.media.channel < 0){
-							$scope.car.media.channel = $scope.car.media.playList.length - 1;
-						}
-
-						audioElement.src = $scope.car.media.playList[$scope.car.media.channel];
-						audioElement.play();
-
-						console.log('load: ' + $scope.car.media.playList[$scope.car.media.channel]);
+					if($scope.mode === 'media' && message === 'gesture: grabLoose' && normalizedPalmPosition[0] > 1/3 && normalizedPalmPosition[0] < 2/3){
+						$scope.car.media.play();
 					}
 
-					if(message === 'gesture: right' && $scope.mode === 'media'){
-
-						++ $scope.car.media.channel;
-						
-						if($scope.car.media.channel > $scope.car.media.playList.length - 1){
-							$scope.car.media.channel = 0;
-						}
-
-						audioElement.src = $scope.car.media.playList[$scope.car.media.channel];
-						audioElement.play();
-
-						console.log('load: ' + $scope.car.media.playList[$scope.car.media.channel]);
+					if($scope.mode === 'ac' && message === 'gesture: grabLoose' && normalizedPalmPosition[0] > 1/3 && normalizedPalmPosition[0] < 2/3){
+						$scope.car.ac.isOn = true;
 					}
 
-					if($scope.mode === 'media' && message === 'gesture: grabLoose' && normalizedPalmPosition[0] > 1/3 && normalizedPalmPosition[0] < 2/3 && normalizedPalmPosition[1] < 1/2){
-						
-						if(!$scope.car.media.playList.length){
-							$scope.car.media.playList = $scope.car.media[$scope.car.media.mode];
-						}
-
-						if(!audioElement.src){
-							audioElement.src = $scope.car.media.playList[$scope.car.media.channel];
-						}
-
-						audioElement.play();
+					if($scope.mode === 'ac' && message === 'gesture: grabTight' && normalizedPalmPosition[0] > 1/3 && normalizedPalmPosition[0] < 2/3){
+						$scope.car.ac.isOn = false;
 					}
 
 					if($scope.mode === 'media' && message === 'gesture: grabTight' && Math.abs(normalizedPalmPosition[0]) > 1/3 && Math.abs(normalizedPalmPosition[0]) < 2/3 && normalizedPalmPosition[1] < 1/2){
 						audioElement.load();
 					}
 
-					if(message === 'gesture: double up' && $scope.mode === 'window'){
+					if(message === 'gesture: up' && $scope.mode === 'window'){
+						$scope.car.stopWindow(0) || $scope.car.closeWindow(0);
 						console.log('window close');
 					}
 
-					if(message === 'gesture: double down' && $scope.mode === 'window'){
+					if(message === 'gesture: down' && $scope.mode === 'window'){
+						$scope.car.stopWindow(0) || $scope.car.openWindow(0);
 						console.log('window open');
 					}
 
@@ -275,10 +329,21 @@ var app = angular.module('leapmotion', []).controller('Ctrl', function($scope){
 						console.log('top window close');
 					}
 
+					if(message === 'gesture: pinchLoose' && $scope.mode === 'ac' && $scope.car.ac.isOn){
+						$scope.car.ac.fanSpeed <= $scope.car.ac.fanSpeedRange[1] - 1 && $scope.car.ac.fanSpeed ++;
+						$scope.$apply()
+					}
+
+					if(message === 'gesture: pinchTight' && $scope.mode === 'ac' && $scope.car.ac.isOn){
+						$scope.car.ac.fanSpeed >= $scope.car.ac.fanSpeedRange[0] + 1 && $scope.car.ac.fanSpeed --;
+						$scope.$apply()
+					}
+
 					resumeAt = +new Date() + config.breakBetweenGestures;
 					break;
 
 					// return;
+
 				}
 
 			}
@@ -289,7 +354,7 @@ var app = angular.module('leapmotion', []).controller('Ctrl', function($scope){
 
 		// console.log('new frame pushed');
 
-		while(frame.timestamp - frames[0].timestamp > 200000){
+		while(frame.timestamp - frames[0].timestamp > 100000){
 			frames.shift();
 			// console.log('head frame shifted');
 		}
@@ -354,7 +419,7 @@ var app = angular.module('leapmotion', []).controller('Ctrl', function($scope){
 
 			var temperature = $scope.car.ac.temperature;
 
-			if((temperature > 30 && amount > 0) || (temperature < 16 && amount < 0)){
+			if((temperature > 30 && amount > 0) || (temperature < 16 && amount < 0) || !$scope.car.ac.isOn){
 				return;
 			}
 
@@ -384,29 +449,29 @@ var app = angular.module('leapmotion', []).controller('Ctrl', function($scope){
 			}
 		}
 
-		if(gesture.type === 'screenTap'){
+		// if(gesture.type === 'screenTap'){
 			
-			console.info('gesture: screenTap');
+		// 	console.info('gesture: screenTap');
 
-			if(normalizedIndexTipPosition[1] > 2/3){
-				$scope.mode = 'window';
-			}
-			else if(normalizedIndexTipPosition[1] < 1/3){
-				$scope.mode = 'ac';
-			}
-			else if(normalizedIndexTipPosition[0] > 2/3){
-				$scope.mode = 'media';
-			}
-			else if(normalizedIndexTipPosition[0] < 1/3){
-				$scope.mode = 'phone';
-			}
+		// 	if(normalizedIndexTipPosition[1] > 2/3){
+		// 		$scope.mode = 'window';
+		// 	}
+		// 	else if(normalizedIndexTipPosition[1] < 1/3){
+		// 		$scope.mode = 'ac';
+		// 	}
+		// 	else if(normalizedIndexTipPosition[0] > 2/3){
+		// 		$scope.mode = 'media';
+		// 	}
+		// 	else if(normalizedIndexTipPosition[0] < 1/3){
+		// 		$scope.mode = 'phone';
+		// 	}
 
-			console.log('mode: ' + $scope.mode);
+		// 	console.log('mode: ' + $scope.mode);
 
-			$('.interface').hide();
-			$('.interface#' + $scope.mode).show()
+		// 	$('.interface').hide();
+		// 	$('.interface#' + $scope.mode).show()
 
-		}
+		// }
 
 		if(gesture.type === 'swipe'){
 
@@ -439,10 +504,10 @@ var app = angular.module('leapmotion', []).controller('Ctrl', function($scope){
 					}, true)
 				){
 					gestureResumeAt = +new Date() + config.breakBetweenGestures;
-					var swipeDirecrtion = thisDirection.sides[gesture.direction[index] > 0 ? 0 : 1];
-					console.info('gesture: swipe ' + swipeDirecrtion);
+					var swipeDirection = thisDirection.sides[gesture.direction[index] > 0 ? 0 : 1];
+					console.info('gesture: swipe ' + swipeDirection);
 
-					if(swipeDirecrtion === 'down' && $scope.mode === 'media' && frame.hands[0].palmNormal[1] < 0){
+					if(swipeDirection === 'down' && $scope.mode === 'media' && frame.hands[0].palmNormal[1] < 0){
 						$scope.car.media.mode = $scope.car.media.mode === 'music' ? 'radio' : 'music';
 						
 						$scope.car.media.playList = $scope.car.media[$scope.car.media.mode];
@@ -454,6 +519,57 @@ var app = angular.module('leapmotion', []).controller('Ctrl', function($scope){
 						console.log('load: ' + $scope.car.media.playList[$scope.car.media.channel]);
 						console.log('media $scope.mode: ' + $scope.car.media.mode);
 					}
+
+					if($scope.mode === 'phone' && $scope.car.phone.status === 'calling in'){
+						if(swipeDirection === 'left'){
+							$scope.car.phone.answer();
+						}
+						if(swipeDirection === 'right'){
+							$scope.car.phone.decline();
+						}
+					}
+
+					if($scope.mode === 'phone' && $scope.car.phone.status === 'online' && swipeDirection === 'right'){
+						$scope.enterMode('media');
+					}
+
+					if(swipeDirection === 'left' && $scope.mode === 'media'){
+						-- $scope.car.media.channel;
+						
+						if($scope.car.media.channel < 0){
+							$scope.car.media.channel = $scope.car.media.playList.length - 1;
+						}
+
+						audioElement.src = $scope.car.media.playList[$scope.car.media.channel];
+						audioElement.play();
+
+						console.log('load: ' + $scope.car.media.playList[$scope.car.media.channel]);
+					}
+
+					if(swipeDirection === 'right' && $scope.mode === 'media'){
+
+						++ $scope.car.media.channel;
+						
+						if($scope.car.media.channel > $scope.car.media.playList.length - 1){
+							$scope.car.media.channel = 0;
+						}
+
+						audioElement.src = $scope.car.media.playList[$scope.car.media.channel];
+						audioElement.play();
+
+						console.log('load: ' + $scope.car.media.playList[$scope.car.media.channel]);
+					}
+
+					if(swipeDirection === 'in' && $scope.mode === 'window'){
+						$scope.car.stopWindow(4) || $scope.car.closeWindow(4);
+						console.log('close top window');
+					}
+
+					if(swipeDirection === 'out' && $scope.mode === 'window'){
+						$scope.car.stopWindow(4) || $scope.car.openWindow(4);
+						console.log('open top window');
+					}
+
 				}
 			});
 		}
